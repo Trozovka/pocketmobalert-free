@@ -25,6 +25,13 @@ interface EntitlementManager {
     /** Stores [key] and immediately attempts to verify it. No-op for tiers with no license
      * concept. */
     suspend fun setLicenseKeyAndVerify(key: String) {}
+
+    /** False for stores that sell through their own purchase sheet (Google Play): the UI then
+     * shows only a buy button, never a license-key box or any mention of another store. */
+    fun usesLicenseKeyField(): Boolean = true
+
+    /** Label of the button in the license section. */
+    fun activateButtonLabel(): String = "Activate"
 }
 
 class FreeEntitlementManager : EntitlementManager {

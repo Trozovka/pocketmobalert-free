@@ -165,17 +165,19 @@ private fun LicenseSection(entitlementManager: EntitlementManager) {
 
     Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
         Text("License: $message")
-        OutlinedTextField(
-            value = keyText,
-            onValueChange = { keyOverride = it },
-            label = { Text("Gumroad license key") },
-        )
+        if (entitlementManager.usesLicenseKeyField()) {
+            OutlinedTextField(
+                value = keyText,
+                onValueChange = { keyOverride = it },
+                label = { Text("Gumroad license key") },
+            )
+        }
         Button(onClick = {
             scope.launch {
                 entitlementManager.setLicenseKeyAndVerify(keyText)
                 statusMessage = entitlementManager.licenseStatusMessage()
             }
-        }) { Text("Activate") }
+        }) { Text(entitlementManager.activateButtonLabel()) }
     }
 }
 
