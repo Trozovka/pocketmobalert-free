@@ -136,12 +136,8 @@ class MobAlertWatchService : Service() {
             ACTION_ACKNOWLEDGE -> {
                 intent.getStringExtra(EXTRA_DEVICE_ID)?.let {
                     separationMonitor.acknowledge(it)
-                    // Without this, only the first-ever Alarming edge for a given paired device
-                    // gets written to the alert log for the lifetime of this service instance --
-                    // the sound/vibrate/relay still correctly re-fire on every real re-separation,
-                    // but silently stop being logged after the first one. Real bug, caught by
-                    // directly inspecting the on-device DB after a real two-phone soak test: the
-                    // sound was audibly confirmed firing repeatedly, but the log stayed frozen.
+                    // Clear the "already logged" mark so the next separation of this
+                    // device is logged too, not only the first one.
                     loggedDeviceIds -= it
                 }
                 return START_STICKY
