@@ -41,4 +41,23 @@ class NmeaWplTest {
         val sentence = NmeaWpl.buildSentence(0.0, 0.0, "MOB")
         assertEquals(true, sentence.endsWith("\r\n"))
     }
+
+    @Test
+    fun decimalPointIsUsedInEveryPhoneLanguage() {
+        val before = java.util.Locale.getDefault()
+        try {
+            val expected = NmeaWpl.buildSentence(14.5, 120.25, "MOB")
+            for (tag in listOf("de", "ru", "id", "fr", "ar-EG", "fa")) {
+                java.util.Locale.setDefault(java.util.Locale.forLanguageTag(tag))
+                org.junit.Assert.assertEquals(tag, expected, NmeaWpl.buildSentence(14.5, 120.25, "MOB"))
+            }
+        } finally {
+            java.util.Locale.setDefault(before)
+        }
+    }
+
+    @Test
+    fun minutesNeverRoundUpToSixty() {
+        org.junit.Assert.assertTrue(NmeaWpl.buildSentence(13.999999999, 120.0, "MOB").startsWith("\$GPWPL,1400.000,N,"))
+    }
 }
