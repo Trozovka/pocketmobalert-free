@@ -56,6 +56,8 @@ class MobAlertBeaconService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // A second Start tap while already sending must not start a second advertiser.
+        if (_status.value == BeaconStatus.Advertising) return START_STICKY
         startForegroundWithNotification()
         startAdvertising()
         return START_STICKY

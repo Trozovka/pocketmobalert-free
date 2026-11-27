@@ -32,6 +32,9 @@ interface EntitlementManager {
 
     /** Label of the button in the license section. */
     fun activateButtonLabel(): String = "Activate"
+
+    /** Short result of the last Activate/Buy tap, shown under the button so a tap is never silent. */
+    fun lastActionMessage(): String? = null
 }
 
 class FreeEntitlementManager : EntitlementManager {

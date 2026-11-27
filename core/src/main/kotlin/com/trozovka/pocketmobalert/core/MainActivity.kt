@@ -1,16 +1,25 @@
 package com.trozovka.pocketmobalert.core
 
 import android.content.Intent
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -27,7 +36,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.trozovka.pocketmobalert.core.beacon.MobAlertBeaconService
@@ -42,6 +53,8 @@ import com.trozovka.pocketmobalert.core.watch.MobAlertWatchService
 import com.trozovka.pocketmobalert.core.watch.PairedCrewStore
 import com.trozovka.toolkit.reliability.LocationReliabilityPermissionFlow
 import java.text.DateFormat
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.Date
 import kotlinx.coroutines.launch
 
@@ -51,18 +64,22 @@ class MainActivity : ComponentActivity() {
     private lateinit var locationPermissionFlow: LocationReliabilityPermissionFlow
     private var pendingServiceToStart: (() -> Unit)? = null
 
+    private fun showNotice(text: String) {
+        Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         locationPermissionFlow = LocationReliabilityPermissionFlow(
             activity = this,
             onReady = { pendingServiceToStart?.invoke() },
-            onDenied = { },
+            onDenied = { showNotice("Location permission was not allowed. Watch Mode needs it to find Bluetooth signals and to save where an alarm happened. Allow it in Settings > Apps > this app > Permissions.") },
         )
         blePermissionFlow = BlePermissionFlow(
             activity = this,
             onReady = { locationPermissionFlow.begin() },
-            onDenied = { },
+            onDenied = { showNotice("Nearby devices (Bluetooth) permission was not allowed. The app cannot work without it. Allow it in Settings > Apps > this app > Permissions.") },
         )
 
         val entitlementManager = (application as EntitlementManagerHolder).entitlementManager
@@ -128,11 +145,19 @@ private fun AppTabs(
         }
     }
 
+    var showDocs by remember { mutableStateOf(false) }
+    if (showDocs) {
+        DocumentationScreen(appLabel, versionName, onClose = { showDocs = false })
+        return
+    }
+
     Column {
-        Text(
-            "$appLabel v${versionName ?: "?"} — developed by Trozovka",
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+            IconButton(onClick = { showDocs = true }) {
+                Icon(Icons.Filled.Menu, contentDescription = "How to use this app")
+            }
+            Text("$appLabel v${versionName ?: "?"} by Trozovka")
+        }
         LicenseSection(entitlementManager)
         TabRow(selectedTabIndex = selectedTab) {
             Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Crew Mode") })
@@ -154,6 +179,7 @@ private fun LicenseSection(entitlementManager: EntitlementManager) {
     // returns null and this section renders nothing, rather than an empty/irrelevant box.
     var statusMessage by remember { mutableStateOf<String?>(null) }
     var keyOverride by remember { mutableStateOf<String?>(null) }
+    var actionMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -164,7 +190,8 @@ private fun LicenseSection(entitlementManager: EntitlementManager) {
     val keyText = keyOverride ?: entitlementManager.getLicenseKeyInput()
 
     Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-        Text("License: $message")
+        // Store builds without a key box show their own plain sentence, no "License:" label.
+        Text(if (entitlementManager.usesLicenseKeyField()) "License: $message" else message)
         if (entitlementManager.usesLicenseKeyField()) {
             OutlinedTextField(
                 value = keyText,
@@ -176,8 +203,11 @@ private fun LicenseSection(entitlementManager: EntitlementManager) {
             scope.launch {
                 entitlementManager.setLicenseKeyAndVerify(keyText)
                 statusMessage = entitlementManager.licenseStatusMessage()
+                // time stamp so a repeated tap with the same result still visibly answers
+                actionMessage = entitlementManager.lastActionMessage()?.let { "$it (${nowText()})" }
             }
         }) { Text(entitlementManager.activateButtonLabel()) }
+        actionMessage?.let { Text(it) }
     }
 }
 
@@ -186,14 +216,26 @@ private fun CrewModeScreen(onStartCrewMode: () -> Unit, onStopCrewMode: () -> Un
     val status by MobAlertBeaconService.status.collectAsState()
     val deviceId by MobAlertBeaconService.deviceIdHex.collectAsState()
 
+    var lastTap by remember { mutableStateOf<String?>(null) }
+    val sending = status == MobAlertBeaconService.BeaconStatus.Advertising
+
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Crew mode: $status")
-        deviceId?.let { Text("Device ID: $it") }
-        Button(onClick = onStartCrewMode) { Text("Start Crew Mode") }
-        Button(onClick = onStopCrewMode) { Text("Stop Crew Mode") }
+        Text("Use Crew Mode on the phone of the person going out on deck. It sends a small Bluetooth signal. Your buddy's phone (Watch Mode) listens for it.")
+        Text(
+            when (val st = status) {
+                MobAlertBeaconService.BeaconStatus.Stopped -> "Crew Mode: OFF"
+                MobAlertBeaconService.BeaconStatus.Advertising -> "Crew Mode: ON, sending signal"
+                is MobAlertBeaconService.BeaconStatus.Error -> "Crew Mode: OFF. Problem: ${st.message}${hintFor(st.message)}"
+            },
+            fontWeight = FontWeight.Bold,
+        )
+        if (sending) deviceId?.let { Text("This phone's ID: $it (your buddy sees this ID when pairing)") }
+        Button(enabled = !sending, onClick = { lastTap = "Start tapped at ${nowText()}"; onStartCrewMode() }) { Text("Start Crew Mode") }
+        Button(enabled = sending, onClick = { lastTap = "Stop tapped at ${nowText()}"; onStopCrewMode() }) { Text("Stop Crew Mode") }
+        lastTap?.let { Text(it) }
     }
 }
 
@@ -210,6 +252,8 @@ private fun WatchModeScreen(
     val alarmStates by MobAlertWatchService.alarmStates.collectAsState()
     val relayedAlertActive by MobAlertWatchService.relayedAlertActive.collectAsState()
     val scanError by MobAlertWatchService.scanError.collectAsState()
+    val running by MobAlertWatchService.running.collectAsState()
+    var lastTap by remember { mutableStateOf<String?>(null) }
 
     // alarmStates ticks every ~1s while Watch mode runs, which doubles as this screen's refresh
     // cadence for the paired list (SharedPreferences-backed, not itself a reactive flow) and the
@@ -243,9 +287,18 @@ private fun WatchModeScreen(
         modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Button(onClick = onStartWatchMode) { Text("Start Watch Mode") }
-        Button(onClick = onStopWatchMode) { Text("Stop Watch Mode") }
-        scanError?.let { Text("Error: $it") }
+        Text("Use Watch Mode on your own phone. It listens for your buddy's Crew Mode signal and sounds the alarm if the signal is lost.")
+        Text(
+            when {
+                running -> "Watch Mode: ON, listening"
+                scanError != null -> "Watch Mode: OFF. Problem: $scanError${hintFor(scanError!!)}"
+                else -> "Watch Mode: OFF"
+            },
+            fontWeight = FontWeight.Bold,
+        )
+        Button(enabled = !running, onClick = { lastTap = "Start tapped at ${nowText()}"; onStartWatchMode() }) { Text("Start Watch Mode") }
+        Button(enabled = running, onClick = { lastTap = "Stop tapped at ${nowText()}"; onStopWatchMode() }) { Text("Stop Watch Mode") }
+        lastTap?.let { Text(it) }
 
         if (relayedAlertActive) {
             Text("ALARM relayed from another Watch device -- a paired crew member may be overboard.")
@@ -277,7 +330,13 @@ private fun WatchModeScreen(
         // not a roster to keep browsing once you're already set up.
         var pendingNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
         if (pairedDevices.isEmpty()) {
-            Text("Nearby crew beacons not yet paired:")
+            Text(
+                when {
+                    !running -> "To pair: start Watch Mode here and Crew Mode on your buddy's phone. Keep the phones close."
+                    unpairedSightings.isEmpty() -> "Looking for Crew Mode phones nearby... none found yet. Start Crew Mode on your buddy's phone and keep it close."
+                    else -> "Crew Mode phones found nearby. Type a name and tap Add Crew:"
+                },
+            )
             Column {
                 unpairedSightings.values.forEach { sighting ->
                     Column {
@@ -374,5 +433,78 @@ private fun PairedDeviceRow(
             Button(onClick = onAcknowledge) { Text("Acknowledge Alarm") }
         }
         Button(onClick = onRemove) { Text("Remove") }
+    }
+}
+
+private fun nowText(): String = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date())
+
+private fun hintFor(problem: String): String = when {
+    problem.contains("turned off", ignoreCase = true) -> ". Turn on Bluetooth, then tap Start again."
+    problem.contains("permission", ignoreCase = true) -> ". Allow Nearby devices and Location in Settings > Apps > this app > Permissions."
+    else -> ""
+}
+
+@Composable
+private fun DocumentationScreen(appLabel: String, versionName: String?, onClose: () -> Unit) {
+    BackHandler(onBack = onClose)
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        TextButton(onClick = onClose) { Text("< Back") }
+        Text("How to use $appLabel", fontWeight = FontWeight.Bold)
+        DocSection(
+            "What it is",
+            "A man-overboard alarm for two phones. You and one buddy each have a phone. " +
+                "If your buddy falls overboard with the phone, the signal is lost and YOUR phone sounds the alarm. " +
+                "It works fully offline: no internet, no SIM, no account.",
+        )
+        DocSection(
+            "What you need",
+            "Two Android phones with this app, Bluetooth ON on both, and the permissions the app asks for " +
+                "(Nearby devices and Location).",
+        )
+        DocSection(
+            "Who uses which mode",
+            "Crew Mode = the phone of the person going out on deck (in the pocket).\n" +
+                "Watch Mode = the phone of the buddy who stays and listens for the alarm.",
+        )
+        DocSection(
+            "Step by step",
+            "1. Buddy's phone: open the app, tab Crew Mode, tap Start Crew Mode. It shows ON.\n" +
+                "2. Your phone: tab Watch Mode, tap Start Watch Mode. It shows ON.\n" +
+                "3. Keep the phones close. Your buddy's phone appears in the list. Type a name (for example Bosun) and tap Add Crew.\n" +
+                "4. Leave both running. You can lock the screens.\n" +
+                "5. If the signal is lost, your phone sounds the alarm and saves the time (and the position, if the phone has one). Tap Acknowledge Alarm to silence it.\n" +
+                "6. Finished? Tap Stop on both phones.",
+        )
+        DocSection(
+            "Before you rely on it",
+            "Steel decks and walls block Bluetooth. Walk around your ship once and check that the alarm does NOT go off where your buddy normally works. " +
+                "This app is an extra help only. It does not replace your lifejacket, PLB/AIS-MOB beacon, or the ship's man-overboard procedure.",
+        )
+        DocSection(
+            "If something does not work",
+            "\"Bluetooth is turned off\": turn on Bluetooth, tap Start again.\n" +
+                "\"Permission not granted\": Settings > Apps > this app > Permissions, allow Nearby devices and Location.\n" +
+                "Buddy not found: start Crew Mode on the other phone and hold the phones close.\n" +
+                "Alarm goes off by itself: the phones are too far apart or behind steel. Move closer.\n" +
+                "Turn off battery saver for this app so Android does not stop it.",
+        )
+        DocSection(
+            "Free and Pro",
+            "Free: the full alarm, up to 2 crew members, last alert saved.\n" +
+                "Pro (one payment): unlimited crew, full alert history, and a MOB waypoint sent to OpenCPN.",
+        )
+        Text("$appLabel v${versionName ?: "?"} by Trozovka (John Winsome Munar)")
+        TextButton(onClick = onClose) { Text("< Back") }
+    }
+}
+
+@Composable
+private fun DocSection(title: String, body: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title, fontWeight = FontWeight.Bold)
+        Text(body)
     }
 }
