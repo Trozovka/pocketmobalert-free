@@ -475,7 +475,7 @@ private fun DocumentationScreen(appLabel: String, versionName: String?, onClose:
                 "2. Your phone: tab Watch Mode, tap Start Watch Mode. It shows ON.\n" +
                 "3. Keep the phones close. Your buddy's phone appears in the list. Type a name (for example Bosun) and tap Add Crew.\n" +
                 "4. Leave both running. You can lock the screens.\n" +
-                "5. If the signal is lost, your phone sounds the alarm and saves the time (and the position, if the phone has one). Tap Acknowledge Alarm to silence it.\n" +
+                "5. If the signal is lost, your phone sounds the alarm and saves the time (and the position, if the phone has one). It keeps ringing until you tap Acknowledge Alarm, even if the signal comes back, so you always go and check on your buddy.\n" +
                 "6. Finished? Tap Stop on both phones.",
         )
         DocSection(

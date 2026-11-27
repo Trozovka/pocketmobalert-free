@@ -147,7 +147,9 @@ class MobAlertBeaconService : Service() {
     override fun onDestroy() {
         stopAdvertising()
         wakeLock.release()
-        _status.value = BeaconStatus.Stopped
+        // Keep a start-up problem (e.g. Bluetooth off) on screen; stopSelf() after an error used to
+        // overwrite it with "Stopped" at once, so the user saw nothing happen.
+        if (_status.value !is BeaconStatus.Error) _status.value = BeaconStatus.Stopped
         super.onDestroy()
     }
 
