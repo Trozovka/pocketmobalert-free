@@ -3,6 +3,13 @@ package com.trozovka.pocketmobalert.core
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.ButtonDefaults
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -44,6 +51,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -91,10 +99,12 @@ class MainActivity : ComponentActivity() {
         val entitlementManager = (application as EntitlementManagerHolder).entitlementManager
         val pairedCrewStore = PairedCrewStore(applicationContext)
 
+        // Light status-bar icons on the dark teal bar.
+        enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         setContent {
-            MaterialTheme {
-                Scaffold { padding ->
-                    Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            TrozovkaTheme {
+                Scaffold(containerColor = Slate, contentWindowInsets = WindowInsets(0)) { padding ->
+                    Column(modifier = Modifier.fillMaxSize().padding(padding).navigationBarsPadding()) {
                         AppTabs(
                             onStartCrewMode = {
                                 pendingServiceToStart = { startService(Intent(this@MainActivity, MobAlertBeaconService::class.java)) }
@@ -163,23 +173,24 @@ private fun AppTabs(
     }
 
     Column {
-        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+        // Teal top bar (behind the status bar too): app name, version, Settings gear.
+        Box(modifier = Modifier.fillMaxWidth().background(TealBar).statusBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp)) {
             Column(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(appLabel, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text("v${versionName ?: "?"}", fontSize = 12.sp)
+                Text(appLabel, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("v${versionName ?: "?"}", fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
             }
             IconButton(onClick = { page = 1 }, modifier = Modifier.align(Alignment.CenterEnd)) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = Color.White)
             }
         }
-        LicenseSection(entitlementManager)
-        TabRow(selectedTabIndex = selectedTab) {
+        TabRow(selectedTabIndex = selectedTab, containerColor = TealBar, contentColor = Color.White) {
             Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Crew Mode") })
             Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Watch Mode") })
         }
+        LicenseSection(entitlementManager)
         when (selectedTab) {
             0 -> CrewModeScreen(onStartCrewMode, onStopCrewMode)
             1 -> WatchModeScreen(
@@ -251,7 +262,7 @@ private fun CrewModeScreen(onStartCrewMode: () -> Unit, onStopCrewMode: () -> Un
         )
         if (sending) deviceId?.let { Text("This phone's ID: $it (your buddy sees this ID when pairing)") }
         Button(enabled = !sending, onClick = { lastTap = "Start tapped at ${nowText()}"; onStartCrewMode() }) { Text("Start Crew Mode") }
-        Button(enabled = sending, onClick = { lastTap = "Stop tapped at ${nowText()}"; onStopCrewMode() }) { Text("Stop Crew Mode") }
+        Button(enabled = sending, colors = ButtonDefaults.buttonColors(containerColor = Orange), onClick = { lastTap = "Stop tapped at ${nowText()}"; onStopCrewMode() }) { Text("Stop Crew Mode") }
         lastTap?.let { Text(it) }
     }
 }
@@ -314,12 +325,12 @@ private fun WatchModeScreen(
             fontWeight = FontWeight.Bold,
         )
         Button(enabled = !running, onClick = { lastTap = "Start tapped at ${nowText()}"; onStartWatchMode() }) { Text("Start Watch Mode") }
-        Button(enabled = running, onClick = { lastTap = "Stop tapped at ${nowText()}"; onStopWatchMode() }) { Text("Stop Watch Mode") }
+        Button(enabled = running, colors = ButtonDefaults.buttonColors(containerColor = Orange), onClick = { lastTap = "Stop tapped at ${nowText()}"; onStopWatchMode() }) { Text("Stop Watch Mode") }
         lastTap?.let { Text(it) }
 
         if (relayedAlertActive) {
-            Text("ALARM relayed from another Watch device -- a paired crew member may be overboard.")
-            Button(onClick = onAcknowledgeRelay) { Text("Acknowledge Relayed Alarm") }
+            Text("ALARM relayed from another Watch device -- a paired crew member may be overboard.", color = Orange, fontWeight = FontWeight.Bold)
+            Button(colors = ButtonDefaults.buttonColors(containerColor = Orange), onClick = onAcknowledgeRelay) { Text("Acknowledge Relayed Alarm") }
         }
 
         Text("Paired crew (${pairedDevices.size}${maxCrewDevices?.let { "/$it" } ?: ""}):")
@@ -446,9 +457,9 @@ private fun PairedDeviceRow(
             DeviceAlarmState.PossibleSeparation -> "Possible separation -- confirming..."
             DeviceAlarmState.Alarming -> "ALARM -- crew member may be overboard"
         }
-        Text("$label: $stateText")
+        Text("$label: $stateText", color = if (state == DeviceAlarmState.Alarming) Orange else Color.Unspecified, fontWeight = if (state == DeviceAlarmState.Alarming) FontWeight.Bold else null)
         if (state == DeviceAlarmState.Alarming) {
-            Button(onClick = onAcknowledge) { Text("Acknowledge Alarm") }
+            Button(colors = ButtonDefaults.buttonColors(containerColor = Orange), onClick = onAcknowledge) { Text("Acknowledge Alarm") }
         }
         Button(onClick = onRemove) { Text("Remove") }
     }
@@ -466,7 +477,7 @@ private fun hintFor(problem: String): String = when {
 private fun DocumentationScreen(appLabel: String, versionName: String?, onClose: () -> Unit) {
     BackHandler(onBack = onClose)
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().statusBarsPadding().padding(24.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         TextButton(onClick = onClose) { Text("< Back") }
@@ -532,7 +543,7 @@ private fun DocSection(title: String, body: String) {
 private fun SettingsScreen(appLabel: String, versionName: String?, onHowTo: () -> Unit, onClose: () -> Unit) {
     BackHandler(onBack = onClose)
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().statusBarsPadding().padding(24.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         TextButton(onClick = onClose) { Text("< Back") }
