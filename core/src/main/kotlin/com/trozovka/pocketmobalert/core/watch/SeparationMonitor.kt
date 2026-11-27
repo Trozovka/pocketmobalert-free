@@ -25,11 +25,15 @@ class SeparationMonitor(private val now: () -> Long = System::currentTimeMillis)
 
     private val latchedAlarms = mutableSetOf<String>()
 
+    // Watch Mode is often started before the buddy's Crew Mode; give a paired device that has
+    // not been heard yet STARTUP_GRACE_MILLIS before treating it as missing.
+    private val startedAt = now()
+
     /**
      * @param lastSeenMillis wall-clock time each paired device's BLE advertisement was last
      * received, keyed by device ID hex. A paired device with no entry yet (never seen this
-     * session) is treated as [DeviceAlarmState.Alarming] immediately -- it never had a first
-     * contact.
+     * session) is [DeviceAlarmState.WaitingForSignal] during the start-up grace period, then
+     * [DeviceAlarmState.Alarming] -- it never had a first contact.
      */
     fun evaluate(pairedDeviceIds: Set<String>, lastSeenMillis: Map<String, Long>): Map<String, DeviceAlarmState> {
         val nowMillis = now()
@@ -39,7 +43,7 @@ class SeparationMonitor(private val now: () -> Long = System::currentTimeMillis)
             } else {
                 val lastSeen = lastSeenMillis[deviceId]
                 val state = if (lastSeen == null) {
-                    DeviceAlarmState.Alarming
+                    if (nowMillis - startedAt < STARTUP_GRACE_MILLIS) DeviceAlarmState.WaitingForSignal else DeviceAlarmState.Alarming
                 } else {
                     classify(nowMillis - lastSeen)
                 }
@@ -65,10 +69,12 @@ class SeparationMonitor(private val now: () -> Long = System::currentTimeMillis)
     companion object {
         const val MISS_THRESHOLD_MILLIS = 4_000L
         const val CONFIRMATION_WINDOW_MILLIS = 4_000L
+        const val STARTUP_GRACE_MILLIS = 30_000L
     }
 }
 
 sealed class DeviceAlarmState {
+    data object WaitingForSignal : DeviceAlarmState()
     data object Present : DeviceAlarmState()
     data object PossibleSeparation : DeviceAlarmState()
     data object Alarming : DeviceAlarmState()

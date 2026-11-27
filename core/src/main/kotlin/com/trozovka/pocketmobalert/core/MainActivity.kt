@@ -8,14 +8,20 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -145,18 +151,29 @@ private fun AppTabs(
         }
     }
 
-    var showDocs by remember { mutableStateOf(false) }
-    if (showDocs) {
-        DocumentationScreen(appLabel, versionName, onClose = { showDocs = false })
+    // 0 = main screen, 1 = Settings, 2 = How to use (opened from Settings)
+    var page by remember { mutableIntStateOf(0) }
+    if (page == 2) {
+        DocumentationScreen(appLabel, versionName, onClose = { page = 1 })
+        return
+    }
+    if (page == 1) {
+        SettingsScreen(appLabel, versionName, onHowTo = { page = 2 }, onClose = { page = 0 })
         return
     }
 
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-            IconButton(onClick = { showDocs = true }) {
-                Icon(Icons.Filled.Menu, contentDescription = "How to use this app")
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(appLabel, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text("v${versionName ?: "?"}", fontSize = 12.sp)
             }
-            Text("$appLabel v${versionName ?: "?"} by Trozovka")
+            IconButton(onClick = { page = 1 }, modifier = Modifier.align(Alignment.CenterEnd)) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
         }
         LicenseSection(entitlementManager)
         TabRow(selectedTabIndex = selectedTab) {
@@ -424,6 +441,7 @@ private fun PairedDeviceRow(
 ) {
     Column {
         val stateText = when (state) {
+            DeviceAlarmState.WaitingForSignal -> "Waiting for signal... (start Crew Mode on this phone)"
             DeviceAlarmState.Present -> "Present"
             DeviceAlarmState.PossibleSeparation -> "Possible separation -- confirming..."
             DeviceAlarmState.Alarming -> "ALARM -- crew member may be overboard"
@@ -452,7 +470,7 @@ private fun DocumentationScreen(appLabel: String, versionName: String?, onClose:
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         TextButton(onClick = onClose) { Text("< Back") }
-        Text("How to use $appLabel", fontWeight = FontWeight.Bold)
+        Text("How to use $appLabel", fontWeight = FontWeight.Bold, fontSize = 20.sp)
         DocSection(
             "What it is",
             "A man-overboard alarm for two phones. You and one buddy each have a phone. " +
@@ -474,13 +492,14 @@ private fun DocumentationScreen(appLabel: String, versionName: String?, onClose:
             "1. Buddy's phone: open the app, tab Crew Mode, tap Start Crew Mode. It shows ON.\n" +
                 "2. Your phone: tab Watch Mode, tap Start Watch Mode. It shows ON.\n" +
                 "3. Keep the phones close. Your buddy's phone appears in the list. Type a name (for example Bosun) and tap Add Crew.\n" +
-                "4. Leave both running. You can lock the screens.\n" +
+                "4. Leave both running. You can lock the screens. (Started Watch first? It waits 30 seconds for your buddy's signal before it alarms.)\n" +
                 "5. If the signal is lost, your phone sounds the alarm and saves the time (and the position, if the phone has one). It keeps ringing until you tap Acknowledge Alarm, even if the signal comes back, so you always go and check on your buddy.\n" +
                 "6. Finished? Tap Stop on both phones.",
         )
         DocSection(
             "Before you rely on it",
-            "Steel decks and walls block Bluetooth. Walk around your ship once and check that the alarm does NOT go off where your buddy normally works. " +
+            "Works best when you and your buddy work close together, within about 10-30 m (less behind steel). " +
+                "Steel decks and walls block Bluetooth. Walk around your ship once and check that the alarm does NOT go off where your buddy normally works. " +
                 "This app is an extra help only. It does not replace your lifejacket, PLB/AIS-MOB beacon, or the ship's man-overboard procedure.",
         )
         DocSection(
@@ -506,5 +525,33 @@ private fun DocSection(title: String, body: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(title, fontWeight = FontWeight.Bold)
         Text(body)
+    }
+}
+
+@Composable
+private fun SettingsScreen(appLabel: String, versionName: String?, onHowTo: () -> Unit, onClose: () -> Unit) {
+    BackHandler(onBack = onClose)
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        TextButton(onClick = onClose) { Text("< Back") }
+        Text("Settings", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        SettingsRow("How to use", "Step by step, in simple English", onHowTo)
+        HorizontalDivider()
+        Text("About", fontWeight = FontWeight.Bold)
+        Text("$appLabel v${versionName ?: "?"}")
+        Text("Man-overboard alarm for two phones. Works offline: no account, no ads, nothing leaves your phone.")
+        Text("Made by a Master Mariner for seafarers. Developer: John Winsome Munar (Trozovka).")
+        Text("An extra help only. It does not replace your lifejacket, PLB/AIS-MOB beacon or your ship's man-overboard procedure.")
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp)) {
+        Text(title, fontWeight = FontWeight.Bold)
+        Text(subtitle, fontSize = 13.sp)
     }
 }
