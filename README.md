@@ -7,6 +7,14 @@ the same boat watch each other over Bluetooth.
 phones and sounds a loud alarm as soon as one goes out of range. Every phone can run both modes at once, so the
 crew protect each other; no single "captain's phone" is needed.
 
+**In one minute:** you need one buddy and two phones. Your buddy going out on deck puts their phone on
+**Crew Mode**; you stay on watch with your phone on **Watch Mode**. If your buddy falls in the water, their
+phone's signal is lost and **your phone sounds the alarm** right away, saving the time and position. Switch
+roles and they watch you.
+
+**Range:** works best when you and your buddy work close together, within about 10-30 m (less behind steel).
+Steel decks and walls block Bluetooth, so walk around your ship once to test it.
+
 **This is a free aid for small crews and day trips, not a replacement for a certified AIS personal locator
 beacon (PLB).** A phone is bigger and less waterproof than a PLB, and it only works if the person is carrying it.
 A PLB costs USD 250-600 per person; with this app, protecting one more crew member costs nothing, because
