@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -476,12 +477,12 @@ private fun hintFor(problem: String): String = when {
 @Composable
 private fun DocumentationScreen(appLabel: String, versionName: String?, onClose: () -> Unit) {
     BackHandler(onBack = onClose)
+    Column(modifier = Modifier.fillMaxSize()) {
+    ScreenBar("How to use", onClose)
     Column(
-        modifier = Modifier.fillMaxSize().statusBarsPadding().padding(24.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        TextButton(onClick = onClose) { Text("< Back") }
-        Text("How to use $appLabel", fontWeight = FontWeight.Bold, fontSize = 20.sp)
         DocSection(
             "What it is",
             "A man-overboard alarm for two phones. You and one buddy each have a phone. " +
@@ -527,7 +528,19 @@ private fun DocumentationScreen(appLabel: String, versionName: String?, onClose:
                 "Pro (one payment): unlimited crew, full alert history, and a MOB waypoint sent to OpenCPN.",
         )
         Text("$appLabel v${versionName ?: "?"} by Trozovka (John Winsome Munar)")
-        TextButton(onClick = onClose) { Text("< Back") }
+    }
+    }
+}
+
+/** Teal bar for secondary screens: back arrow + title, same look as the main top bar. */
+@Composable
+private fun ScreenBar(title: String, onBack: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().background(TealBar).statusBarsPadding().padding(horizontal = 4.dp, vertical = 6.dp),
+    ) {
+        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White) }
+        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
     }
 }
 
@@ -542,12 +555,12 @@ private fun DocSection(title: String, body: String) {
 @Composable
 private fun SettingsScreen(appLabel: String, versionName: String?, onHowTo: () -> Unit, onClose: () -> Unit) {
     BackHandler(onBack = onClose)
+    Column(modifier = Modifier.fillMaxSize()) {
+    ScreenBar("Settings", onClose)
     Column(
-        modifier = Modifier.fillMaxSize().statusBarsPadding().padding(24.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        TextButton(onClick = onClose) { Text("< Back") }
-        Text("Settings", fontWeight = FontWeight.Bold, fontSize = 20.sp)
         SettingsRow("How to use", "Step by step, in simple English", onHowTo)
         HorizontalDivider()
         Text("About", fontWeight = FontWeight.Bold)
@@ -556,6 +569,7 @@ private fun SettingsScreen(appLabel: String, versionName: String?, onHowTo: () -
         Text("Made by a Master Mariner for seafarers. Developer: John Winsome Munar (Trozovka).")
         Text("An extra help only. It does not replace your lifejacket, PLB/AIS-MOB beacon or your ship's man-overboard procedure.")
         Spacer(Modifier.height(8.dp))
+    }
     }
 }
 
