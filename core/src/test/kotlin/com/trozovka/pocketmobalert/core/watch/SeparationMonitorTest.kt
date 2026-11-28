@@ -34,11 +34,23 @@ class SeparationMonitorTest {
     }
 
     @Test
-    fun `never-seen paired device is Alarming immediately`() {
+    fun `never-seen paired device waits during start-up grace, then alarms`() {
         val clock = FakeClock(100_000L)
         val monitor = SeparationMonitor(now = { clock.millis })
-        val result = monitor.evaluate(setOf("crew1"), emptyMap())
-        assertEquals(DeviceAlarmState.Alarming, result["crew1"])
+        assertEquals(DeviceAlarmState.WaitingForSignal, monitor.evaluate(setOf("crew1"), emptyMap())["crew1"])
+        clock.advance(SeparationMonitor.STARTUP_GRACE_MILLIS - 1)
+        assertEquals(DeviceAlarmState.WaitingForSignal, monitor.evaluate(setOf("crew1"), emptyMap())["crew1"])
+        clock.advance(1)
+        assertEquals(DeviceAlarmState.Alarming, monitor.evaluate(setOf("crew1"), emptyMap())["crew1"])
+    }
+
+    @Test
+    fun `device first heard during grace is Present`() {
+        val clock = FakeClock(100_000L)
+        val monitor = SeparationMonitor(now = { clock.millis })
+        clock.advance(10_000L)
+        val result = monitor.evaluate(setOf("crew1"), mapOf("crew1" to clock.millis - 500L))
+        assertEquals(DeviceAlarmState.Present, result["crew1"])
     }
 
     @Test

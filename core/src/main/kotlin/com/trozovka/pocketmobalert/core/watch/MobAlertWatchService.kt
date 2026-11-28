@@ -147,13 +147,16 @@ class MobAlertWatchService : Service() {
                 return START_STICKY
             }
         }
+        // A second Start tap while already watching must not start a second scan, wake lock and loop.
+        if (_running.value) return START_STICKY
         startForegroundWithNotification()
         startScanning()
-        startEvaluationLoop()
+        if (_running.value) startEvaluationLoop()
         return START_STICKY
     }
 
     private fun startScanning() {
+        _scanError.value = null
         if (!BlePermissions.hasScanPermission(this) || !BlePermissions.hasConnectPermission(this)) {
             _scanError.value = "Bluetooth permission not granted"
             stopSelf()
@@ -187,6 +190,7 @@ class MobAlertWatchService : Service() {
 
         try {
             scanner?.startScan(filters, settings, scanCallback)
+            _running.value = true
         } catch (e: SecurityException) {
             Log.e(TAG, "Missing runtime permission for startScan", e)
             _scanError.value = "Bluetooth permission not granted"
@@ -301,6 +305,7 @@ class MobAlertWatchService : Service() {
         _sightings.value = emptyMap()
         _alarmStates.value = emptyMap()
         _relayedAlertActive.value = false
+        _running.value = false
         super.onDestroy()
     }
 
@@ -375,6 +380,9 @@ class MobAlertWatchService : Service() {
          * Watch device (not its own direct detection). Separately acknowledgeable. */
         private val _relayedAlertActive = MutableStateFlow(false)
         val relayedAlertActive: StateFlow<Boolean> = _relayedAlertActive.asStateFlow()
+
+        private val _running = MutableStateFlow(false)
+        val running: StateFlow<Boolean> = _running.asStateFlow()
 
         private val _scanError = MutableStateFlow<String?>(null)
         val scanError: StateFlow<String?> = _scanError.asStateFlow()

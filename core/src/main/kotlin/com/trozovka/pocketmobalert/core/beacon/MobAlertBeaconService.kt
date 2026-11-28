@@ -56,6 +56,8 @@ class MobAlertBeaconService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // A second Start tap while already sending must not start a second advertiser.
+        if (_status.value == BeaconStatus.Advertising) return START_STICKY
         startForegroundWithNotification()
         startAdvertising()
         return START_STICKY
@@ -145,7 +147,9 @@ class MobAlertBeaconService : Service() {
     override fun onDestroy() {
         stopAdvertising()
         wakeLock.release()
-        _status.value = BeaconStatus.Stopped
+        // Keep a start-up problem (e.g. Bluetooth off) on screen; stopSelf() after an error used to
+        // overwrite it with "Stopped" at once, so the user saw nothing happen.
+        if (_status.value !is BeaconStatus.Error) _status.value = BeaconStatus.Stopped
         super.onDestroy()
     }
 
