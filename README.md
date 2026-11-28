@@ -111,5 +111,5 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 MIT -- see [LICENSE](LICENSE) for the full text.
 
-Copyright (c) 2026 Trozovka (John Winsome Munar). Original Author: Trozovka (John Winsome Munar). All derivative works must retain the
+Copyright (c) 2026 John Winsome Munar. Original Author: John Winsome Munar. All derivative works must retain the
 [NOTICE](NOTICE) file's attribution. Not a fork of, or derived from, any other project's source.

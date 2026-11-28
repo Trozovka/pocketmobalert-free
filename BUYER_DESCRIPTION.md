@@ -12,4 +12,4 @@ Requires Android 8.0 or newer. Coming soon to Google Play; until then you instal
 
 For coders: open source (MIT), github.com/Trozovka/pocketmobalert-free
 
-Made by Trozovka (John Winsome Munar), Master Mariner.
+Made by John Winsome Munar, Master Mariner.

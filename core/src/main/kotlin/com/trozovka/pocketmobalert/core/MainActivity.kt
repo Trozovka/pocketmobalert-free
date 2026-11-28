@@ -527,7 +527,7 @@ private fun DocumentationScreen(appLabel: String, versionName: String?, onClose:
             "Free: the full alarm, up to 2 crew members, last alert saved.\n" +
                 "Pro (one payment): unlimited crew, full alert history, and a MOB waypoint sent to OpenCPN.",
         )
-        Text("$appLabel v${versionName ?: "?"} by Trozovka (John Winsome Munar)")
+        Text("$appLabel v${versionName ?: "?"} by John Winsome Munar")
     }
     }
 }
@@ -566,7 +566,7 @@ private fun SettingsScreen(appLabel: String, versionName: String?, onHowTo: () -
         Text("About", fontWeight = FontWeight.Bold)
         Text("$appLabel v${versionName ?: "?"}")
         Text("Man-overboard alarm for two phones. Works offline: no account, no ads, nothing leaves your phone.")
-        Text("Made by a Master Mariner for seafarers. Developer: John Winsome Munar (Trozovka).")
+        Text("Made by a Master Mariner for seafarers. Developer: John Winsome Munar.")
         Text("An extra help only. It does not replace your lifejacket, PLB/AIS-MOB beacon or your ship's man-overboard procedure.")
         Spacer(Modifier.height(8.dp))
     }
